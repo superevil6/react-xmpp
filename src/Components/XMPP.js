@@ -8,8 +8,8 @@ class XMPP extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            jid: 'test2@alexcassells.com',
-            password: 'test',
+            jid: '',
+            password: '',
             nickname: '',
             registerPageShow: false,
             registrationName: '',
