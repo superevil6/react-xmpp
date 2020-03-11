@@ -323,9 +323,9 @@ class XMPP extends React.Component {
             {this.state.connected === false && !this.state.registerPageShow &&
                 <div className='login-box' style={this.mainColor}>
                     <span>{this.props.chatName ? this.props.chatName : 'Chat'}</span>
-                    <label>JID: </label>
+                    <label>Username: </label>
                     <input onChange={this.jidHandleChange} type="text"></input>
-                    <br></br>
+                    <br/>
                     <label>Password: </label>
                     <input onChange={this.passHandleChange} type="password"></input>
                     <br/>
@@ -335,7 +335,7 @@ class XMPP extends React.Component {
                 </div>
             }
                 {this.state.registerPageShow &&
-                <div>
+                <div className='login-box' style={this.mainColor}>
                     <span>Registration</span><br/>
                     <label>Username: </label>
                     <input type='text' onChange={ () => this.registrationNameHandleChange}></input><br/>
