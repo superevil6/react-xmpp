@@ -6,12 +6,13 @@ function App() {
   return (
     <div className="App">
         <XMPP 
-        server="https://conference.alexcassells.com:5281/http-bind" 
-        MUC='conference.alexcassells.com' 
-        mainColor='#333333' 
-        secondaryColor='#00FF00' 
-        textColor='#FFFFFF'
-        width='400px'
+        server="" //add your bosh or websocket XMPP server here ex: https://conference.example.com:5281/http-bind
+        domain='' //add your jid domain here ex: example.com
+        MUC=''  //add your multi user chat address here ex: conference.example.com
+        mainColor='#FFFFFF' 
+        secondaryColor='#999999' 
+        textColor='#000000'
+        width='1000px'
         />
     </div>
   );

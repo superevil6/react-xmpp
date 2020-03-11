@@ -1,6 +1,5 @@
 import React from 'react';
 import {Strophe} from 'node-strophe';
-import ReactDOM from 'react-dom';
 import {animateScroll} from 'react-scroll';
 import './XMPP.css';
 
@@ -65,15 +64,19 @@ class XMPP extends React.Component {
         let elems = message.getElementsByTagName('body');
         let body = this.Strophe.Strophe.getText(elems[0]);
         if(body != null){
-            let name = from.substring(0, from.indexOf('@')); 
-            let nick = from.substring(from.indexOf('/') +1, from.length);
+            let name;
+            if(type === 'groupchat'){
+                name = from.substring(from.indexOf('/') + 1, from.length); 
+            }
+            if(type === 'chat'){
+                name = from.substring(0, from.indexOf('@')); 
+            }
             from = from.substring(0, from.indexOf('/'));
             let message = { 
                 to: to,
                 from: from, 
                 type: type,
                 name: name, 
-                nick: nick, 
                 message: body
             };
             this.getNewMessage(message);
@@ -93,11 +96,10 @@ class XMPP extends React.Component {
                 to: to,
                 from: this.state.jid,
                 type: this.state.chatType,
-                nick: message.type == 'groupchat' ? message.from.substring(message.from.indexOf('/'), message.from.length) : '',
                 name: this.state.jid.substring(0, this.state.jid.indexOf('@')),
                 message: message
             }
-            if(selfMessage.type == 'chat'){
+            if(selfMessage.type === 'chat'){
                 this.getNewMessage(selfMessage);
             }
             this.setState({message : ''});
@@ -137,7 +139,6 @@ class XMPP extends React.Component {
     rosterCallback = (iq) =>{
         let results = iq.getElementsByTagName('item');
         let friendsList = [];
-        console.log(results);
         for(let i = 0; i < results.length; i++){
             friendsList.push(results.item(i).attributes.getNamedItem('jid').value);
         }
@@ -145,8 +146,7 @@ class XMPP extends React.Component {
     }
 
     onSubscriptionRequest = (stanza) =>{
-        console.log(stanza);
-        if(stanza.getAttribute('type') == 'subscribe'){
+        if(stanza.getAttribute('type') === 'subscribe'){
             let from = stanza.getAttribute('from');
             this.connection.send(this.Strophe.$pres({
                 to: from,
@@ -177,17 +177,11 @@ class XMPP extends React.Component {
         }).c('query',{
             xmlns: 'jabber:iq:register'
         });
-        this.connection.sendIQ(iq, this.registrationCallback);
+        this.connection.sendIQ(iq);
         this.toggleRegistration();
     }
-    registrationCallback = (iq) =>{
-        console.log("hi");
-        console.log(iq);
-    }
     onPresence = (presence) =>{
-        let presenceType = presence.getAttribute('type');
         let from = presence.getAttribute('from');
-        let show = presence.getAttribute('show');
         if(this.props.MUC && from && from.includes(this.props.MUC)){
             let nick = from.substring(from.indexOf('/') + 1, from.length);
             let roomParticipantsNew = this.state.roomParticipants;
@@ -200,16 +194,16 @@ class XMPP extends React.Component {
     }
 
     onConnect = (status) =>{
-        if(status == Strophe.Strophe.Status.CONNECTING){
+        if(status === Strophe.Strophe.Status.CONNECTING){
             this.onStatusChange("Connecting");            
         }
-        else if(status == Strophe.Strophe.Status.CONNFAIL){
+        else if(status === Strophe.Strophe.Status.CONNFAIL){
             this.onStatusChange("Connection Failed, retrying.");
         }
-        else if(status == Strophe.Strophe.Status.DISCONNECTING){
+        else if(status === Strophe.Strophe.Status.DISCONNECTING){
             this.onStatusChange("Disconnected");
         }
-        else if(status == Strophe.Strophe.Status.CONNECTED){
+        else if(status === Strophe.Strophe.Status.CONNECTED){
             this.onStatusChange("Connected!");
             this.setState({connected : true})
             this.connection.addHandler(this.onMessage, null, 'message', null, null, null);
@@ -285,14 +279,14 @@ class XMPP extends React.Component {
         });
     }
     jidHandleChange = (e) =>{
-        this.setState({jid : e.target.value });
+        this.setState({jid : e.target.value + '@' + this.props.domain});
     }
 
     passHandleChange = (e) =>{
         this.setState({password : e.target.value });
     }
     registrationNameHandleChange = (e) =>{
-        this.setState({registrationName: e.targe.value});
+        this.setState({registrationName: e.targe.value + '@' + this.props.domain});
     }
     registrationPasswordHandleChange = (e) =>{
         this.setState({registrationPassword: e.target.value});
@@ -305,13 +299,13 @@ class XMPP extends React.Component {
         this.setState({message : e.target.value });
     }
     handleKeyPress = (event) => {
-        if(event.key == 'Enter'){
+        if(event.key === 'Enter'){
           this.sendMessage(this.state.recipient, this.state.message);
           this.setState({message: ''});
         } 
     }
     addFriendHandleChange = (e) =>{
-        this.setState({ friendToAdd : e.target.value })
+        this.setState({ friendToAdd : e.target.value + '@' + this.props.domain })
     }
     rejectFriend =() =>{
         let friendRequest = '';
@@ -326,7 +320,7 @@ class XMPP extends React.Component {
     return (
         <div className="container" style={this.width}>
             {/* Before connected */}
-            {this.state.connected == false && !this.state.registerPageShow &&
+            {this.state.connected === false && !this.state.registerPageShow &&
                 <div className='login-box' style={this.mainColor}>
                     <span>{this.props.chatName ? this.props.chatName : 'Chat'}</span>
                     <label>JID: </label>
@@ -354,27 +348,32 @@ class XMPP extends React.Component {
             <div>
             {this.state.connected && 
             <div className="chat-window" style={this.mainColor}>
-                <div className="friends-list">
-                    <div>
-                        <span>{this.state.connectionStatus}</span>
-                    </div>
-                    <div>
-                        <span>Friends:</span>
-                        {this.state.onlineFriends && this.state.onlineFriends.map( (friend) =>
-                            <button style={this.secondaryColor} key={friend} onClick={() => this.setRecipient(friend, 'chat')}>{friend.substring(0, friend.indexOf('@')) }</button>
-                        )}
-                    </div>
-                    <div>
-                        <span>Rooms:</span>
-                        {this.state.chatRooms && this.state.chatRooms.map( (room, index) =>
-                            <button style={this.secondaryColor} key={room.name+index} onClick={() => this.joinRoom(room)}>{room.name}</button>
-                        )}
-                    </div>
-                    <div >
-                        <span>Participants:</span>
-                        {this.state.chatType == 'groupchat' && this.state.roomParticipants.map( (participant, index) =>
-                            <span key={participant+index}>{participant}</span>
-                        )}
+                <div className="side-bar">
+                    <div> 
+                        <div>
+                            <span>{this.state.connectionStatus}</span>
+                        </div>
+                        <div>
+                            <span>Friends:</span>
+                            {this.state.onlineFriends && this.state.onlineFriends.map( (friend) =>
+                                <button style={this.secondaryColor} key={friend} onClick={() => this.setRecipient(friend, 'chat')}>{friend.substring(0, friend.indexOf('@')) }</button>
+                            )}
+                        </div>
+                        <div>
+                            <span>Rooms:</span>
+                            {this.state.chatRooms && this.state.chatRooms.map( (room, index) =>
+                                <button style={this.secondaryColor} key={room.name+index} onClick={() => this.joinRoom(room)}>{room.name}</button>
+                            )}
+                        </div>
+                        {this.state.roomParticipants && this.state.chatType === 'groupchat' &&
+                            <div >
+                                <span>Participants:</span>
+                                {this.state.chatType === 'groupchat' && this.state.roomParticipants.map( (participant, index) =>
+                                    <span key={participant+index}>{participant}</span>
+                                )}
+                            </div>
+                        }
+
                     </div>
                     {this.state.friendRequest && 
                         <div>
@@ -384,7 +383,7 @@ class XMPP extends React.Component {
                             <button style={this.secondaryColor} onClick={ () => this.rejectFriend}>Reject</button>
                         </div>
                     }
-                    <div >
+                    <div>
                         <span>Add Contact:</span>
                         <label>Username: </label>
                         <input type='text' value={this.state.friendToAdd} onChange={this.addFriendHandleChange}></input>
@@ -395,11 +394,7 @@ class XMPP extends React.Component {
                         {this.state.recipient ? this.state.recipient.substring(0, this.state.recipient.indexOf('@')) : "Messages"}
                         <div id='messages' className="message-box">
                             {this.state.messages && this.state.messages.map( (message, index) => ( 
-                                message.from == this.state.recipient  && message.type == 'groupchat' &&
-                                <span className='message' key={message.name + index}>{message.type == 'groupchat' ? message.nick : message.name}: {message.message}</span>
-                            ))}
-                            {this.state.messages && this.state.messages.map( (message, index) => ( 
-                                (message.from == this.state.recipient || message.to == this.state.recipient) &&
+                                (message.from === this.state.recipient || message.to === this.state.recipient) &&
                                 <span className='message' key={message.name + index}>{message.name}: {message.message}</span>
                             ))}
                         </div>
