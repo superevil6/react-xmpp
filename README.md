@@ -1,5 +1,5 @@
 Things to do: 
-1. Finish up the friend request system.
+1. Contact management menu!
 2. Push it out to NPMJS
 
 To use:
