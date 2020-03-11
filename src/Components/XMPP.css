@@ -1,0 +1,68 @@
+.container{
+    display: flex;
+    flex-direction: column;
+    align-content: center;
+}
+.login-box{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.chat-window{
+    display: flex;
+    flex-direction: row;
+    align-content: center;
+}
+.friends-list div{
+    display: flex;
+    flex-direction: column;
+    padding: 5px;
+    border: 1px black solid;
+}
+.rooms-list{
+    display: flex;
+    flex-direction: column;
+    padding: 5px;
+    border: 1px black solid;
+}
+.chat-area{
+    width: 400px;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    border: 1px black solid;
+}
+.message-box{
+    width: 100%;
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+    padding: 5px;
+    overflow: auto;
+}
+.message-box::-webkit-scrollbar{
+    display: none;
+}
+.text-area{
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+}
+.text-area input{
+    width: 80%;
+}
+.text-area button{
+    width: 20%;
+}
+button{
+border: black solid 1px;
+}
+button:hover{
+background-color:#000000AA;
+}
+.message{
+    display: flex;
+    padding: 2px;
+    justify-content: space-between;
+}
