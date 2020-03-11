@@ -15,6 +15,8 @@ class XMPP extends React.Component {
             registrationName: '',
             registrationPassword: '',
             registrationStatus: '',
+            friendToAdd: '',
+            friendRequest: '',
             connectionStatus: 'Not Connected',
             connected: false,
             messages: [],
@@ -35,6 +37,7 @@ class XMPP extends React.Component {
         this.handleKeyPress = this.handleKeyPress.bind(this);
         this.registrationNameHandleChange = this.registrationNameHandleChange.bind(this);
         this.registrationPasswordHandleChange = this.registrationPasswordHandleChange.bind(this);
+        this.addFriendHandleChange = this.addFriendHandleChange.bind(this);
         }
     Strophe = Strophe;
     connection = new Strophe.Strophe.Connection(this.props.server, "KEEPALIVE");
@@ -90,6 +93,7 @@ class XMPP extends React.Component {
                 to: to,
                 from: this.state.jid,
                 type: this.state.chatType,
+                nick: message.type == 'groupchat' ? message.from.substring(message.from.indexOf('/'), message.from.length) : '',
                 name: this.state.jid.substring(0, this.state.jid.indexOf('@')),
                 message: message
             }
@@ -106,10 +110,11 @@ class XMPP extends React.Component {
     }
 
     subscribePresence = (jid) =>{
-        this.connection.send(this.$pres({
+        this.connection.send(this.Strophe.$pres({
             to: jid,
             type: 'subscribe'
         }));
+        this.setState({friendToAdd : '', friendRequest : ''});
     }
 
     getPresence = (jid) =>{
@@ -132,6 +137,7 @@ class XMPP extends React.Component {
     rosterCallback = (iq) =>{
         let results = iq.getElementsByTagName('item');
         let friendsList = [];
+        console.log(results);
         for(let i = 0; i < results.length; i++){
             friendsList.push(results.item(i).attributes.getNamedItem('jid').value);
         }
@@ -139,12 +145,14 @@ class XMPP extends React.Component {
     }
 
     onSubscriptionRequest = (stanza) =>{
+        console.log(stanza);
         if(stanza.getAttribute('type') == 'subscribe'){
             let from = stanza.getAttribute('from');
-            this.connection.send(this.$pres({
+            this.connection.send(this.Strophe.$pres({
                 to: from,
                 type: 'subscribed'
             }))
+            this.setState({friendRequest : from});
         }
         return true;
     }
@@ -262,7 +270,9 @@ class XMPP extends React.Component {
         this.setState({roomParticipants: participants});
     }
     connectButtonPushed = () =>{
-        this.connection.connect(this.state.jid, this.state.password, this.onConnect);
+        if(this.state.jid && this.state.password){
+            this.connection.connect(this.state.jid, this.state.password, this.onConnect);
+        }
     }
     getNewMessage = (message) =>{
         let newMessages = this.state.messages.concat(message);
@@ -294,11 +304,18 @@ class XMPP extends React.Component {
     messageHandleChange = (e) =>{
         this.setState({message : e.target.value });
     }
-    handleKeyPress(event) {
+    handleKeyPress = (event) => {
         if(event.key == 'Enter'){
           this.sendMessage(this.state.recipient, this.state.message);
           this.setState({message: ''});
         } 
+    }
+    addFriendHandleChange = (e) =>{
+        this.setState({ friendToAdd : e.target.value })
+    }
+    rejectFriend =() =>{
+        let friendRequest = '';
+        this.setState({friendRequest : friendRequest});
     }
     scrollToBottom() {
         animateScroll.scrollToBottom({
@@ -320,6 +337,7 @@ class XMPP extends React.Component {
                     <br/>
                     <button style={this.secondaryColor} onClick={this.connectButtonPushed}>Log on</button>
                     <button style={this.secondaryColor} onClick={this.toggleRegistration}>Register</button>
+                    {this.state.connectionStatus}
                 </div>
             }
                 {this.state.registerPageShow &&
@@ -358,6 +376,20 @@ class XMPP extends React.Component {
                             <span key={participant+index}>{participant}</span>
                         )}
                     </div>
+                    {this.state.friendRequest && 
+                        <div>
+                            <label>{this.state.friendRequest}</label>
+                            <span>Wishes to be your friend</span>
+                            <button style={this.secondaryColor } onClick={ () => this.subscribePresence(this.state.friendToAdd)}>Add</button>
+                            <button style={this.secondaryColor} onClick={ () => this.rejectFriend}>Reject</button>
+                        </div>
+                    }
+                    <div >
+                        <span>Add Contact:</span>
+                        <label>Username: </label>
+                        <input type='text' value={this.state.friendToAdd} onChange={this.addFriendHandleChange}></input>
+                        <button style={this.secondaryColor} onClick={ () => this.subscribePresence(this.state.friendToAdd)}>Add</button>
+                    </div>
                 </div>
                 <div className="chat-area" style={this.mainColor}>
                         {this.state.recipient ? this.state.recipient.substring(0, this.state.recipient.indexOf('@')) : "Messages"}
@@ -373,7 +405,7 @@ class XMPP extends React.Component {
                         </div>
                     <div className="text-area">
                         <input value={this.state.message} onChange={this.messageHandleChange} onKeyPress={ this.handleKeyPress} ref='messageInput' type="textarea"></input>
-                        <button style={this.secondaryColor} onClick={ () => this.sendMessage(this.state.recipient, this.state.message)} >Send</button>
+                        <button style={this.secondaryColor} onClick={ () => this.sendMessage(this.state.recipient, this.state.message)}>Send</button>
                     </div>
                 </div>
             </div>
