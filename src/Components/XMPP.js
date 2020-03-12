@@ -13,6 +13,7 @@ class XMPP extends React.Component {
             registerPageShow: false,
             registrationName: '',
             registrationPassword: '',
+            registrationPasswordConfirm: '',
             registrationStatus: '',
             friendToAdd: '',
             friendRequest: '',
@@ -36,15 +37,16 @@ class XMPP extends React.Component {
         this.handleKeyPress = this.handleKeyPress.bind(this);
         this.registrationNameHandleChange = this.registrationNameHandleChange.bind(this);
         this.registrationPasswordHandleChange = this.registrationPasswordHandleChange.bind(this);
+        this.registrationPasswordConfirmationHandleChange = this.registrationPasswordConfirmationHandleChange.bind(this);
         this.addFriendHandleChange = this.addFriendHandleChange.bind(this);
         }
     Strophe = Strophe;
     connection = new Strophe.Strophe.Connection(this.props.server, "KEEPALIVE");
-    MUC = Strophe.Strophe.MUC;
     $msg = Strophe.Strophe.$msg;
     $iq = Strophe.Strophe.$iq;
     $pres = Strophe.Strophe.$pres;
-    width = {width: this.props.width? this.props.width : '500px'};
+    width = {width: this.props.width? this.props.width : '400px'};
+    height = {height: this.props.height? this.props.height: '400px'};
     mainColor = {
         backgroundColor: this.props.mainColor,
         color: this.props.textColor
@@ -157,28 +159,54 @@ class XMPP extends React.Component {
         return true;
     }
 
-    listRooms = () =>{
-        this.connection.send(this.Strophe.$pres());
-        let iq = this.Strophe.$iq({
-            from: this.state.jid,
-            to: this.props.MUC,
-            type: 'get'
-        }).c('query',{
-            xmlns: 'http://jabber.org/protocol/disco#items'
-        });
-        this.connection.sendIQ(iq, this.listRoomCallback);
-    }
-
     registerNewUser = () =>{
-        let iq = this.Strophe.$iq({
-            type: 'set',
-            username: this.state.registrationName,
-            password: this.state.registrationPassword
-        }).c('query',{
-            xmlns: 'jabber:iq:register'
-        });
-        this.connection.sendIQ(iq);
-        this.toggleRegistration();
+        console.log(this.state.registrationName + '@' + this.props.domain);
+        if(this.state.registrationPassword === this.state.registrationPasswordConfirm){
+            console.log("Connecting");
+            console.log(this.connection.request);
+            this.connection.register.connect();
+            console.log("connected");
+            let iq = this.Strophe.$iq({
+                type: 'set'
+            }).c('query',{
+                xmlns: 'jabber:iq:register'
+            }).c('username', this.state.registrationName + '@' + this.props.domain).up()
+            .c('password', this.state.registrationPassword);
+            // let iq = this.Strophe.$iq({
+            //     type: 'get',
+            //     to: this.props.server
+            // }).c('query', {
+            //     xmlns: 'jabber:iq:register'
+            // });
+            /*
+<iq type="get" xmlns="jabber:client" id="7302:sendIQ">
+    <query xmlns="jabber:iq:register"/>
+</iq>
+
+<iq>
+<query xmlns="jabber:iq:register">
+    <username>testtest@alexcassells.com</username>
+    <password>test</password>
+</query>
+</iq>
+
+
+<iq type='set' id='reg2'>
+  <query xmlns='jabber:iq:register'>
+    <username>bill</username>
+    <password>Calliope</password>
+    <email>bard@shakespeare.lit</email>
+  </query>
+</iq>
+
+            */
+            this.connection.send(iq, this.registerNewUserCallback);
+            console.log(iq);
+        }
+    }
+    registerNewUserCallback = (iq) =>{
+        console.log(iq);
+        this.connection.disconnect();
     }
     onPresence = (presence) =>{
         let from = presence.getAttribute('from');
@@ -233,6 +261,7 @@ class XMPP extends React.Component {
         }
         this.setRecipient(room.jid, 'groupchat');
     }
+    
     listRooms = () =>{
         this.connection.send(this.Strophe.$pres());
         let iq = this.Strophe.$iq({
@@ -244,6 +273,7 @@ class XMPP extends React.Component {
         });
         this.connection.sendIQ(iq, this.listRoomCallback);
     }
+
     listRoomCallback = (iq) =>{
         let results = iq.getElementsByTagName('item');
         let roomList = [];
@@ -251,18 +281,18 @@ class XMPP extends React.Component {
             roomList.push( { 
                 jid: results.item(i).attributes.getNamedItem('jid').value,
                 name: results.item(i).attributes.getNamedItem('name').value
-        });
+            });
         }
         this.setState({ chatRooms : roomList})
     }
-    listRoomParticipantsCallback = (iq) =>{
-        let results = iq.getElementsByTagName('item');
-        let participants = [];
-        for(let i = 0; i < results.length; i++){
-            participants.push(results.item(i).attributes.getNamedItem('jid').value);
-        }
-        this.setState({roomParticipants: participants});
-    }
+    // listRoomParticipantsCallback = (iq) =>{
+    //     let results = iq.getElementsByTagName('item');
+    //     let participants = [];
+    //     for(let i = 0; i < results.length; i++){
+    //         participants.push(results.item(i).attributes.getNamedItem('jid').value);
+    //     }
+    //     this.setState({roomParticipants: participants});
+    // }
     connectButtonPushed = () =>{
         if(this.state.jid && this.state.password){
             this.connection.connect(this.state.jid, this.state.password, this.onConnect);
@@ -286,10 +316,13 @@ class XMPP extends React.Component {
         this.setState({password : e.target.value });
     }
     registrationNameHandleChange = (e) =>{
-        this.setState({registrationName: e.targe.value + '@' + this.props.domain});
+        this.setState({registrationName: e.target.value});
     }
     registrationPasswordHandleChange = (e) =>{
         this.setState({registrationPassword: e.target.value});
+    }
+    registrationPasswordConfirmationHandleChange = (e) =>{
+        this.setState({registrationPasswordConfirm: e.target.value});
     }
     toggleRegistration = () =>{
         let show = !this.state.registerPageShow;
@@ -338,9 +371,11 @@ class XMPP extends React.Component {
                 <div className='login-box' style={this.mainColor}>
                     <span>Registration</span><br/>
                     <label>Username: </label>
-                    <input type='text' onChange={ () => this.registrationNameHandleChange}></input><br/>
+                    <input type='text' onChange={this.registrationNameHandleChange}></input><br/>
                     <label>Password: </label>
-                    <input type='password' onChange={ ()=> this.registrationPasswordHandleChange}></input><br/>
+                    <input type='password' onChange={this.registrationPasswordHandleChange}></input><br/>
+                    <label>Confirm Password:</label>
+                    <input type='password' onChange={this.registrationPasswordConfirmationHandleChange}></input>
                     <button style={this.secondaryColor} onClick={ ()=> this.registerNewUser() }>Submit</button>
                 </div>
                 }
@@ -392,7 +427,7 @@ class XMPP extends React.Component {
                 </div>
                 <div className="chat-area" style={this.mainColor}>
                         {this.state.recipient ? this.state.recipient.substring(0, this.state.recipient.indexOf('@')) : "Messages"}
-                        <div id='messages' className="message-box">
+                        <div id='messages' className="message-box" style={this.height}>
                             {this.state.messages && this.state.messages.map( (message, index) => ( 
                                 (message.from === this.state.recipient || message.to === this.state.recipient) &&
                                 <span className='message' key={message.name + index}>{message.name}: {message.message}</span>
