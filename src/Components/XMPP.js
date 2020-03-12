@@ -159,8 +159,8 @@ class XMPP extends React.Component {
         return true;
     }
 
+    //registration can only take place once connected, but you can't connect without a username/password. 
     registerNewUser = () =>{
-        console.log(this.state.registrationName + '@' + this.props.domain);
         if(this.state.registrationPassword === this.state.registrationPasswordConfirm){
             console.log("Connecting");
             console.log(this.connection.request);
@@ -172,41 +172,11 @@ class XMPP extends React.Component {
                 xmlns: 'jabber:iq:register'
             }).c('username', this.state.registrationName + '@' + this.props.domain).up()
             .c('password', this.state.registrationPassword);
-            // let iq = this.Strophe.$iq({
-            //     type: 'get',
-            //     to: this.props.server
-            // }).c('query', {
-            //     xmlns: 'jabber:iq:register'
-            // });
-            /*
-<iq type="get" xmlns="jabber:client" id="7302:sendIQ">
-    <query xmlns="jabber:iq:register"/>
-</iq>
-
-<iq>
-<query xmlns="jabber:iq:register">
-    <username>testtest@alexcassells.com</username>
-    <password>test</password>
-</query>
-</iq>
-
-
-<iq type='set' id='reg2'>
-  <query xmlns='jabber:iq:register'>
-    <username>bill</username>
-    <password>Calliope</password>
-    <email>bard@shakespeare.lit</email>
-  </query>
-</iq>
-
-            */
             this.connection.send(iq, this.registerNewUserCallback);
-            console.log(iq);
         }
     }
     registerNewUserCallback = (iq) =>{
         console.log(iq);
-        this.connection.disconnect();
     }
     onPresence = (presence) =>{
         let from = presence.getAttribute('from');
