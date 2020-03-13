@@ -2,7 +2,7 @@ import React from 'react';
 import {Strophe} from 'node-strophe';
 import {animateScroll} from 'react-scroll';
 import './XMPP.css';
-
+import './strophejs-plugin-register';
 class XMPP extends React.Component {
     constructor(props) {
         super(props);
@@ -41,7 +41,7 @@ class XMPP extends React.Component {
         this.addFriendHandleChange = this.addFriendHandleChange.bind(this);
         }
     Strophe = Strophe;
-    connection = new Strophe.Strophe.Connection(this.props.server, "KEEPALIVE");
+    // connection = new Strophe.Strophe.Connection(this.props.server, "KEEPALIVE");
     $msg = Strophe.Strophe.$msg;
     $iq = Strophe.Strophe.$iq;
     $pres = Strophe.Strophe.$pres;
@@ -108,11 +108,6 @@ class XMPP extends React.Component {
         }
     }
     
-    setStatus = (status) =>{
-        status = this.$pres().c('show').t(status);
-        this.connection.send(status);
-    }
-
     subscribePresence = (jid) =>{
         this.connection.send(this.Strophe.$pres({
             to: jid,
@@ -122,13 +117,16 @@ class XMPP extends React.Component {
     }
 
     getPresence = (jid) =>{
-        let check = this.$pres({
+        let check = this.Strophe.$pres({
             type: 'probe',
             to: jid
         });
-        this.connection.send(check);
+        this.connection.send(check, this.presenceCallback);
     }
-
+    presenceCallback = (status) =>{
+        console.log("hi");
+        console.log(status);
+    }
     getRoster = () =>{
         let iq = this.Strophe.$iq({
             type: 'get'
@@ -140,9 +138,12 @@ class XMPP extends React.Component {
 
     rosterCallback = (iq) =>{
         let results = iq.getElementsByTagName('item');
+        console.log(results);
         let friendsList = [];
         for(let i = 0; i < results.length; i++){
-            friendsList.push(results.item(i).attributes.getNamedItem('jid').value);
+            let friend = {name: results.item(i).attributes.getNamedItem('jid').value, subscription: results.item(i).attributes.getNamedItem('subscription').value, status: 'offline' };
+            this.getPresence(friend.status);
+            friendsList.push(friend);
         }
         this.setState({ onlineFriends : friendsList})
     }
@@ -161,23 +162,41 @@ class XMPP extends React.Component {
 
     //registration can only take place once connected, but you can't connect without a username/password. 
     registerNewUser = () =>{
+        this.connection = new this.Strophe.Strophe.Connection(this.props.server, "KEEPALIVE");
         if(this.state.registrationPassword === this.state.registrationPasswordConfirm){
-            console.log("Connecting");
-            console.log(this.connection.request);
-            this.connection.register.connect();
-            console.log("connected");
-            let iq = this.Strophe.$iq({
-                type: 'set'
-            }).c('query',{
-                xmlns: 'jabber:iq:register'
-            }).c('username', this.state.registrationName + '@' + this.props.domain).up()
-            .c('password', this.state.registrationPassword);
-            this.connection.send(iq, this.registerNewUserCallback);
+            this.connection.register.connect(this.props.domain, this.registerCallback);
+        }
+        else{
+            this.setState({registrationStatus : 'Password mismatch'});
         }
     }
-    registerNewUserCallback = (iq) =>{
-        console.log(iq);
-    }
+    registerCallback = (status) => {
+        if (status === this.Strophe.Strophe.Status.REGISTER) {
+            this.connection.register.fields.username = this.state.registrationName;
+            this.connection.register.fields.password = this.state.registrationPassword;
+            this.connection.register.submit();
+        } 
+        else if (status === this.Strophe.Strophe.Status.REGISTERED) {
+            this.connection = new this.Strophe.Strophe.Connection(this.props.server, "KEEPALIVE");
+            console.log("registered!");
+            this.setState({registrationStatus: 'Registered!'});
+            this.connection.connect( this.state.registrationName, this.state.registrationPassword, this.onConnect);
+
+        } 
+        else if (status === this.Strophe.Strophe.Status.CONFLICT) {
+            this.setState({registrationStatus: 'Username is taken.'});
+        } 
+        else if (status === this.Strophe.Strophe.Status.NOTACCEPTABLE) {
+            this.setState({registrationStatus: 'Information invalid.'});
+        } 
+        else if (status === this.Strophe.Strophe.Status.REGIFAIL) {
+            this.setState({registrationStatus: 'Registration not supported.'});
+        } 
+        else if (status === this.Strophe.Strophe.Status.SBMTFAIL) {
+            this.setState({registrationStatus: 'Username already in Use.'});
+        }
+    };
+    
     onPresence = (presence) =>{
         let from = presence.getAttribute('from');
         if(this.props.MUC && from && from.includes(this.props.MUC)){
@@ -192,6 +211,8 @@ class XMPP extends React.Component {
     }
 
     onConnect = (status) =>{
+        console.log(status);
+        console.log(Strophe.Strophe.Status);
         if(status === Strophe.Strophe.Status.CONNECTING){
             this.onStatusChange("Connecting");            
         }
@@ -201,6 +222,14 @@ class XMPP extends React.Component {
         else if(status === Strophe.Strophe.Status.DISCONNECTING){
             this.onStatusChange("Disconnected");
         }
+        else if(status === Strophe.Strophe.Status.AUTHENTICATING){
+            this.onStatusChange("Authenticating.");
+        }
+        else if(status === Strophe.Strophe.Status.AUTHFAIL){
+            this.onStatusChange("Incorrect username or password.");
+            this.connection = new this.Strophe.Strophe.Connection(this.props.server, "KEEPALIVE");
+
+        }
         else if(status === Strophe.Strophe.Status.CONNECTED){
             this.onStatusChange("Connected!");
             this.setState({connected : true})
@@ -209,6 +238,12 @@ class XMPP extends React.Component {
             this.connection.addHandler(this.onPresence, null, 'presence');
             this.getRoster();
             this.listRooms();
+        }
+        else{
+            this.onStatusChange("Unable to connect.");
+            console.log("Unable to connect");
+            this.connection = new this.Strophe.Strophe.Connection(this.props.server, "KEEPALIVE");
+
         }
     }
     
@@ -255,16 +290,10 @@ class XMPP extends React.Component {
         }
         this.setState({ chatRooms : roomList})
     }
-    // listRoomParticipantsCallback = (iq) =>{
-    //     let results = iq.getElementsByTagName('item');
-    //     let participants = [];
-    //     for(let i = 0; i < results.length; i++){
-    //         participants.push(results.item(i).attributes.getNamedItem('jid').value);
-    //     }
-    //     this.setState({roomParticipants: participants});
-    // }
+
     connectButtonPushed = () =>{
         if(this.state.jid && this.state.password){
+            this.connection = new this.Strophe.Strophe.Connection(this.props.server, "KEEPALIVE");
             this.connection.connect(this.state.jid, this.state.password, this.onConnect);
         }
     }
@@ -346,7 +375,11 @@ class XMPP extends React.Component {
                     <input type='password' onChange={this.registrationPasswordHandleChange}></input><br/>
                     <label>Confirm Password:</label>
                     <input type='password' onChange={this.registrationPasswordConfirmationHandleChange}></input>
+                    <br/>
+                    {this.state.registrationStatus}
+                    <br/>
                     <button style={this.secondaryColor} onClick={ ()=> this.registerNewUser() }>Submit</button>
+                    <button style={this.secondaryColor} onClick={ ()=> this.toggleRegistration() }>Back</button>
                 </div>
                 }
             {/* Once connected */}
@@ -361,7 +394,7 @@ class XMPP extends React.Component {
                         <div>
                             <span>Friends:</span>
                             {this.state.onlineFriends && this.state.onlineFriends.map( (friend) =>
-                                <button style={this.secondaryColor} key={friend} onClick={() => this.setRecipient(friend, 'chat')}>{friend.substring(0, friend.indexOf('@')) }</button>
+                                <button style={this.secondaryColor} key={friend.name} onClick={() => this.setRecipient(friend.name, 'chat')}>{friend.name.substring(0, friend.name.indexOf('@')) }</button>
                             )}
                         </div>
                         <div>
