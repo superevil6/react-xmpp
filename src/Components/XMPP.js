@@ -108,13 +108,11 @@ class XMPP extends React.Component {
     }
     
     subscribePresence = (jid) =>{
-        console.log(jid);
         let iq = this.Strophe.$pres({
             to: jid  + '@' + this.props.domain,
             type: 'subscribe'
         });
         this.connection.send(iq);
-        console.log(iq);
         this.setState({friendToAdd : '', friendRequest : ''});
     }
 
